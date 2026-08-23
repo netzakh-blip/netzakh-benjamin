@@ -1,0 +1,1 @@
+Place the full-resolution hero image here as hero.jpg. The live page prefers this binary asset and falls back to the older embedded preview if it is absent.
