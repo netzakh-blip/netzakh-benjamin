@@ -1,0 +1,35 @@
+name: Assemble site media
+
+on:
+  push:
+    paths:
+      - 'media-src/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble exact uploaded media
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets audio
+          cat media-src/hero-*.b64 | tr -d '\n\r' | base64 --decode > assets/hero.jpg
+          cat media-src/audio-*.b64 | tr -d '\n\r' | base64 --decode > audio/soundtrack.mp3
+          test "$(wc -c < assets/hero.jpg)" -eq 463587
+          test "$(wc -c < audio/soundtrack.mp3)" -eq 2683833
+          rm -f media-src/READY
+      - name: Commit assembled media
+        shell: bash
+        run: |
+          git config user.name 'netzakh-media-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add assets/hero.jpg audio/soundtrack.mp3 media-src/READY
+          git commit -m 'Assemble full-resolution hero and original soundtrack recording'
+          git push
