@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="dark light" name="color-scheme"/>
+<title>A Portion of the People | Netzakh.space</title>
+<meta content="Charleston Reform, Judah P. Benjamin, and the law of human property: Jewish belonging, slavery, secession, and Reconstruction." name="description"/>
+<style>
+:root{--ink:#11100d;--paper:#efe0b8;--paper2:#f6e9c7;--gold:#e6ae20;--magenta:#e10a72;--blue:#0754b6;--violet:#5d2a8d;--muted:#6c6048;--cream:#fff5db;--line:#1d1a13;--max:820px;}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:#070706;color:var(--ink);font-family:Georgia,'Times New Roman',serif;line-height:1.68}
+a{color:#064c9d;text-decoration-thickness:.09em;text-underline-offset:.13em}
+a:hover{color:#b20859}
+.sitebar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:.72rem 1rem;background:rgba(7,7,6,.92);backdrop-filter:blur(9px);border-bottom:3px solid var(--magenta);color:var(--cream);font-family:Arial,Helvetica,sans-serif;letter-spacing:.1em;text-transform:uppercase;font-size:.74rem}
+.sitebar .mark{font-weight:900;color:var(--gold)}
+.hero{max-width:1320px;margin:0 auto;display:grid;grid-template-columns:minmax(340px,.9fr) minmax(420px,1.1fr);min-height:88vh;background:var(--paper);border-left:1px solid #26231e;border-right:1px solid #26231e}
+.poster{background:#050505;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.poster:after{content:'';position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 80px rgba(0,0,0,.5);pointer-events:none}
+.poster img{display:block;width:100%;height:100%;max-height:88vh;object-fit:contain;background:#050505}
+.hero-copy{position:relative;padding:clamp(2.2rem,5vw,5.5rem);display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.hero-copy:before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 100% 0%,rgba(7,84,182,.20),transparent 34%),radial-gradient(circle at 0% 100%,rgba(225,10,114,.19),transparent 38%),linear-gradient(135deg,transparent 0 69%,rgba(230,174,32,.16) 69% 71%,transparent 71%);pointer-events:none}
+.kicker{position:relative;font-family:Arial,Helvetica,sans-serif;font-size:.76rem;letter-spacing:.18em;text-transform:uppercase;font-weight:800;color:#9a064d;margin-bottom:1.2rem}
+h1{position:relative;font-size:clamp(2.7rem,6vw,5.8rem);line-height:.93;letter-spacing:-.045em;margin:0 0 1.2rem;max-width:9ch}
+.subtitle{position:relative;font-size:clamp(1.15rem,2vw,1.58rem);line-height:1.25;margin:0 0 2rem;max-width:27ch;font-style:italic}
+.byline{position:relative;font-family:Arial,Helvetica,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:.78rem;font-weight:800;margin-bottom:2.2rem}
+.epigraph{position:relative;margin:0;padding:1.15rem 1.25rem 1.05rem;border-left:7px solid var(--blue);background:rgba(255,245,219,.58);font-size:1.06rem;max-width:36rem}
+.epigraph strong{color:#9a064d}
+.page{max-width:1320px;margin:0 auto;background:linear-gradient(90deg,#e3cf98 0,#f2e5c3 7%,#f2e5c3 93%,#e3cf98 100%);display:grid;grid-template-columns:230px minmax(0,var(--max)) 1fr;gap:clamp(1.2rem,3vw,3rem);padding:4rem clamp(1rem,3vw,3rem) 5rem;border-left:1px solid #26231e;border-right:1px solid #26231e}
+.toc{position:sticky;top:4.2rem;align-self:start;max-height:calc(100vh - 5rem);overflow:auto;padding:1rem .9rem;border-top:5px solid var(--magenta);background:rgba(10,10,9,.95);box-shadow:7px 7px 0 var(--gold);font-family:Arial,Helvetica,sans-serif}
+.toc-title{color:var(--gold);font-weight:900;text-transform:uppercase;letter-spacing:.13em;font-size:.72rem;margin-bottom:.75rem}
+.toc a{display:block;color:#f8efd7;text-decoration:none;font-size:.74rem;line-height:1.25;padding:.42rem 0;border-bottom:1px solid rgba(255,255,255,.11)}
+.toc a:hover{color:#ff4fa1}
+article{min-width:0;font-size:1.095rem}
+article>p{margin:0 0 1.35rem}
+article>p:first-of-type::first-letter{float:left;font-size:4.6rem;line-height:.74;padding:.12rem .5rem 0 0;font-weight:800;color:#a70957}
+.section-title{font-family:Arial,Helvetica,sans-serif;font-size:clamp(1.55rem,3vw,2.25rem);line-height:1.05;margin:3.7rem -1rem 1.55rem;padding:.8rem 1rem .74rem;color:var(--cream);background:#0d0d0b;border-left:10px solid var(--gold);box-shadow:8px 8px 0 rgba(225,10,114,.85);scroll-margin-top:5rem}
+.bibliography-title{margin-top:5rem;border-left-color:var(--blue)}
+em{font-style:italic}
+strong{font-weight:800}
+.fn-ref{font-family:Arial,Helvetica,sans-serif;font-size:.63em;vertical-align:super;line-height:0;margin-left:.08em}
+.fn-ref a{text-decoration:none;color:#a70957;font-weight:900}
+.bib-entry{font-size:.92rem;line-height:1.5;padding-left:1.4rem;text-indent:-1.4rem;margin-bottom:.78rem!important}
+.aside{align-self:start;margin-top:4rem;font-family:Arial,Helvetica,sans-serif;color:#332e22;font-size:.84rem;line-height:1.45}
+.aside-box{border-top:7px solid var(--blue);padding:1rem;background:rgba(255,245,219,.5);box-shadow:6px 6px 0 rgba(230,174,32,.75)}
+.aside-box b{display:block;color:#9a064d;text-transform:uppercase;letter-spacing:.09em;font-size:.72rem;margin-bottom:.55rem}
+.notes-wrap{max-width:1320px;margin:0 auto;background:#0b0b0a;color:#e9dec2;padding:4rem clamp(1rem,5vw,5rem) 5rem;border-top:8px solid var(--gold)}
+.notes-wrap h2{font-family:Arial,Helvetica,sans-serif;text-transform:uppercase;letter-spacing:.1em;color:#ff3d94;margin:0 0 2rem}
+.footnotes{list-style:none;margin:0;padding:0;columns:2;column-gap:3.5rem}
+.footnotes li{break-inside:avoid;display:grid;grid-template-columns:2rem 1fr;gap:.5rem;margin:0 0 1.2rem;font-size:.83rem;line-height:1.52}
+.fn-num{font-family:Arial,Helvetica,sans-serif;color:var(--gold);font-weight:900;text-align:right}
+.notes-wrap a{color:#6fb4ff}
+.fn-back{text-decoration:none;margin-left:.25rem}
+.footer{max-width:1320px;margin:0 auto;padding:1.1rem 1rem 2.2rem;color:#a79a7e;font-family:Arial,Helvetica,sans-serif;font-size:.72rem;text-align:center;background:#070706}
+.mobile-toc{display:none}
+@media(max-width:1000px){
+ .hero{grid-template-columns:1fr;min-height:0} .poster img{max-height:none;height:auto} .hero-copy{padding:3rem clamp(1.2rem,6vw,4rem)} h1{max-width:12ch}
+ .page{grid-template-columns:minmax(0,1fr);padding-top:2rem} .toc,.aside{display:none} .mobile-toc{display:block;margin:0 0 2.3rem;background:#0d0d0b;color:#fff;padding:1rem;border-left:7px solid var(--magenta);font-family:Arial,Helvetica,sans-serif} .mobile-toc summary{cursor:pointer;font-weight:900;text-transform:uppercase;letter-spacing:.1em;font-size:.78rem;color:var(--gold)} .mobile-toc nav{padding-top:.8rem} .mobile-toc a{display:block;color:#f4e7c6;text-decoration:none;padding:.35rem 0;border-bottom:1px solid #313129;font-size:.82rem}
+}
+@media(max-width:720px){body{line-height:1.62} article{font-size:1.02rem} .section-title{margin-left:0;margin-right:0;box-shadow:5px 5px 0 rgba(225,10,114,.8)} .footnotes{columns:1} .sitebar{font-size:.65rem}}
+@media print{.sitebar,.toc,.mobile-toc,.aside{display:none!important} .hero{display:block;min-height:0} .poster img{max-height:9in} .page{display:block;background:white;padding:0} article{max-width:none} .notes-wrap{background:white;color:black;border-top:2px solid black} a{color:black;text-decoration:none}}
+
+/* Archival image layer */
+.archive-figure{margin:2.6rem -1.4rem 3rem;padding:.8rem;background:#090908;border-top:7px solid var(--gold);border-bottom:7px solid var(--magenta);box-shadow:10px 10px 0 rgba(7,84,182,.48);position:relative}
+.archive-figure:before{content:'ARCHIVE';position:absolute;top:.65rem;left:.8rem;z-index:2;padding:.25rem .42rem;background:var(--magenta);color:white;font:900 .62rem/1 Arial,Helvetica,sans-serif;letter-spacing:.16em}
+.archive-figure img{display:block;width:100%;max-height:650px;object-fit:contain;background:#111;filter:sepia(.12) contrast(1.06)}
+.archive-figure.portrait{max-width:560px;margin-left:auto;margin-right:auto}
+.archive-figure.portrait img{max-height:680px}
+.archive-caption{margin:0;padding:.8rem .2rem .18rem;color:#e8dcc0;font:normal .76rem/1.45 Arial,Helvetica,sans-serif}
+.archive-caption strong{color:var(--gold);text-transform:uppercase;letter-spacing:.08em;font-size:.68rem}
+.archive-caption a{color:#7bbaff}
+.monument-note{margin:2.8rem -1rem 3rem;padding:1.15rem 1.25rem 1.2rem;background:#11100d;color:#f4e6c4;border-left:9px solid var(--magenta);border-top:2px solid var(--gold);box-shadow:8px 8px 0 rgba(230,174,32,.75);font:normal .88rem/1.55 Arial,Helvetica,sans-serif}
+.monument-note b{display:block;margin-bottom:.45rem;color:var(--gold);font-size:.72rem;letter-spacing:.13em;text-transform:uppercase}
+.monument-note a{color:#83bdff}
+@media(max-width:720px){.archive-figure{margin:2.1rem 0 2.5rem;box-shadow:5px 5px 0 rgba(7,84,182,.48)}.monument-note{margin:2rem 0 2.4rem;box-shadow:5px 5px 0 rgba(230,174,32,.75)}}
+
+
+/* bilingual edition */
+.lang-switch{display:flex;align-items:center;gap:.25rem;margin-left:auto;margin-right:.8rem;letter-spacing:0;text-transform:none}
+.lang-switch button{appearance:none;border:1px solid rgba(255,255,255,.35);background:#151511;color:#f8efd7;padding:.42rem .64rem;font:800 .72rem/1 Arial,Helvetica,sans-serif;cursor:pointer;border-radius:2px}
+.lang-switch button[aria-pressed="true"]{background:var(--gold);color:#090806;border-color:var(--gold)}
+.sitebar .section-label{white-space:nowrap}
+#toc-en,#toc-he{grid-column:1}
+#article-en,#article-he{grid-column:2}
+.page>.aside{grid-column:3}
+.hebrew-panel{font-family:"Noto Serif Hebrew","Times New Roman",David,serif;text-align:right}
+#article-he{direction:rtl;unicode-bidi:plaintext}
+#article-he .section-title{font-family:Arial,"Noto Sans Hebrew",sans-serif;border-left:0;border-right:10px solid var(--gold);box-shadow:-8px 8px 0 rgba(225,10,114,.85);margin-left:-1rem;margin-right:-1rem}
+#article-he>p:first-of-type::first-letter{float:right;padding:.12rem 0 0 .5rem}
+#article-he .fn-ref{margin-left:0;margin-right:.08em}
+#article-he .archive-figure figcaption{text-align:right}
+#article-he .biblio-ltr{text-align:left;font-family:Georgia,'Times New Roman',serif}
+.hero-copy-he{direction:rtl;text-align:right}
+.hero-copy-he h1{max-width:12ch;letter-spacing:-.025em}
+.hero-copy-he .epigraph{border-left:0;border-right:7px solid var(--blue)}
+.hero-copy-he .kicker,.hero-copy-he .byline{letter-spacing:.08em}
+.aside-he{direction:rtl;text-align:right}
+.remote-image-note{display:none}
+.archive-figure img[data-remote="true"]{min-height:180px;background:repeating-linear-gradient(135deg,#14130f,#14130f 12px,#1d1a13 12px,#1d1a13 24px)}
+.image-fallback{display:none;padding:2.2rem 1.2rem;background:#15140f;color:#f4e8c8;text-align:center;font:700 .82rem/1.5 Arial,Helvetica,sans-serif;border:1px solid #6d5a1d}
+.image-fallback a{color:#ffcc45}
+@media(max-width:1000px){
+  #toc-en,#toc-he{display:none!important}
+  #article-en,#article-he{grid-column:1}
+  .page>.aside{grid-column:1}
+  .sitebar .section-label{display:none}
+  .lang-switch{margin-right:0}
+}
+
+html[dir="rtl"] .hero, html[dir="rtl"] .page{direction:ltr}
+html[dir="rtl"] .hero-copy-he, html[dir="rtl"] #article-he, html[dir="rtl"] #toc-he, html[dir="rtl"] .aside-he{direction:rtl}
+html[dir="rtl"] .sitebar{direction:ltr}
+html[dir="rtl"] .lang-switch{direction:ltr}
+</style>
+</head>
+<body>
+<div class="sitebar"><span class="mark">NETZAKH.SPACE</span><span class="section-label lang-panel english-panel">History / Jewish America / Civil War</span><span class="section-label lang-panel hebrew-panel" dir="rtl" hidden="" lang="he">היסטוריה / יהדות אמריקה / מלחמת האזרחים</span><div aria-label="Language" class="lang-switch" role="group"><button aria-pressed="true" data-lang="en" type="button">EN</button><button aria-pressed="false" data-lang="he" type="button">עברית</button></div></div>
+<header class="hero">
+<div class="poster"><img alt="Collage artwork titled A Portion of the People, with portraits, map imagery, Jewish symbols, and nineteenth-century architectural motifs." src="data:image/jpeg;base64,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
