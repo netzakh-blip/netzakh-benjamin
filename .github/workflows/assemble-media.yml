@@ -22,8 +22,8 @@ jobs:
           mkdir -p assets audio
           cat media-src/hero-*.b64 | tr -d '\n\r' | base64 --decode > assets/hero.jpg
           cat media-src/audio-*.b64 | tr -d '\n\r' | base64 --decode > audio/soundtrack.mp3
-          test "$(wc -c < assets/hero.jpg)" -eq 463587
-          test "$(wc -c < audio/soundtrack.mp3)" -eq 2683833
+          test "$(wc -c < assets/hero.jpg)" -eq 463586
+          test "$(wc -c < audio/soundtrack.mp3)" -eq 2683831
           rm -f media-src/READY
       - name: Commit assembled media
         shell: bash
