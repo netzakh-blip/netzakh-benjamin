@@ -1,0 +1,163 @@
+name: Temporary NLI article 46 retrieval
+
+on:
+  push:
+    branches:
+      - tmp-nli-article46
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retrieve:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install image and OCR utilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick tesseract-ocr tesseract-ocr-heb poppler-utils file
+          python -m pip install --quiet pillow requests beautifulsoup4 lxml
+
+      - name: Retrieve article images, OCR, XML, and page image
+        shell: bash
+        run: |
+          set -u
+          mkdir -p out/direct out/proxy out/page_tiles out/page5
+          UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131 Safari/537.36'
+          DIRECT='https://www.nli.org.il/en/newspapers/'
+          PROXY='https://www-nli-org-il.translate.goog/en/newspapers/'
+          ARTICLE='dwt19070730-01.2.46'
+          PAGE='dwt19070730-01.1.5'
+          ISSUE='dwt19070730-01'
+
+          fetch_one() {
+            url="$1"; dest="$2"
+            code=$(curl -L --silent --show-error --retry 2 --retry-delay 2 --connect-timeout 20 --max-time 90 -A "$UA" -w '%{http_code}' -o "$dest" "$url" || true)
+            printf '%s\t%s\t%s\t%s\n' "$code" "$(stat -c%s "$dest" 2>/dev/null || echo 0)" "$(file -b --mime-type "$dest" 2>/dev/null || true)" "$url" >> out/request-log.tsv
+          }
+
+          printf 'http\tbytes\tmime\turl\n' > out/request-log.tsv
+
+          # XML and HTML/OCR routes.
+          fetch_one "${DIRECT}?a=d&d=${ARTICLE}&f=XML" out/direct/article.xml
+          fetch_one "${PROXY}?a=d&d=${ARTICLE}&f=XML&_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en-US" out/proxy/article.xml
+          fetch_one "https://www.nli.org.il/en/newspapers/dwt/1907/07/30/01/article/46" out/direct/article.html
+          fetch_one "https://www-nli-org-il.translate.goog/en/newspapers/dwt/1907/07/30/01/article/46?_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en-US" out/proxy/article.html
+          fetch_one "${DIRECT}?a=d&d=${PAGE}&f=XML" out/direct/page5.xml
+          fetch_one "${PROXY}?a=d&d=${PAGE}&f=XML&_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en-US" out/proxy/page5.xml
+
+          # Whole issue/page routes, sometimes accessible through the mirror.
+          fetch_one "${DIRECT}?a=is&oid=${ISSUE}&type=staticpdf" out/direct/issue.pdf
+          fetch_one "${PROXY}?a=is&oid=${ISSUE}&type=staticpdf&_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en-US" out/proxy/issue.pdf
+          fetch_one "${DIRECT}?a=is&oid=${PAGE}&type=pageimage&width=5000" out/direct/page5.jpg
+          fetch_one "${PROXY}?a=is&oid=${PAGE}&type=pageimage&width=5000&_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en-US" out/proxy/page5.jpg
+
+          # Logical-section area sweep. Area 1 is known to be the headline; later areas may be body blocks.
+          for area in $(seq 0 80); do
+            fetch_one "${DIRECT}?a=is&oid=${ARTICLE}&type=blockimage&area=${area}&width=5000" "out/direct/area_${area}.bin"
+            fetch_one "${PROXY}?a=is&oid=${ARTICLE}&type=blockimage&area=${area}&width=5000&_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en-US" "out/proxy/area_${area}.bin"
+          done
+          fetch_one "${DIRECT}?a=is&oid=${ARTICLE}&type=blockimage&width=5000" out/direct/article_no_area.bin
+          fetch_one "${PROXY}?a=is&oid=${ARTICLE}&type=blockimage&width=5000&_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en-US" out/proxy/article_no_area.bin
+
+          # Keep only real images from the area sweep; hash to record duplicates.
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import hashlib, shutil, csv
+          rows=[]
+          for folder in (Path('out/direct'), Path('out/proxy')):
+              for p in sorted(folder.glob('area_*.bin')) + list(folder.glob('article_no_area.bin')):
+                  try:
+                      with Image.open(p) as im:
+                          im.verify()
+                      with Image.open(p) as im:
+                          w,h=im.size
+                          fmt=im.format.lower()
+                      hsh=hashlib.sha256(p.read_bytes()).hexdigest()
+                      ext='jpg' if fmt in ('jpeg','jpg') else fmt
+                      dest=p.with_suffix('.'+ext)
+                      shutil.copy2(p,dest)
+                      rows.append((str(dest),w,h,p.stat().st_size,hsh))
+                  except Exception:
+                      pass
+          with open('out/images.tsv','w',newline='',encoding='utf-8') as f:
+              w=csv.writer(f,delimiter='\t'); w.writerow(['path','width','height','bytes','sha256']); w.writerows(rows)
+          PY
+
+          # OCR every valid article image. Hebrew OCR is imperfect but may expose the disputed passage.
+          while IFS=$'\t' read -r img w h bytes hash; do
+            [ "$img" = path ] && continue
+            base="${img%.*}"
+            tesseract "$img" "$base" -l heb --psm 6 2>>out/tesseract-errors.log || true
+          done < out/images.tsv
+
+          # Attempt a page-5 tile mosaic. Probe a generous 5000 x 7500 source canvas in 500-pixel crops.
+          python - <<'PY'
+          import requests, time, os, hashlib
+          from pathlib import Path
+          from PIL import Image
+          base='https://www-nli-org-il.translate.goog/en/newspapers/'
+          page='dwt19070730-01.1.5'
+          out=Path('out/page_tiles'); out.mkdir(parents=True,exist_ok=True)
+          ua={'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131 Safari/537.36'}
+          tile_src=500; tile_out=256
+          valid=[]
+          for y in range(0,7500,tile_src):
+              for x in range(0,5000,tile_src):
+                  url=(f'{base}?a=is&oid={page}&type=pagetileimage&width={tile_out}'
+                       f'&crop={x},{y},{tile_src},{tile_src}'
+                       '&_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en-US')
+                  p=out/f'x{x}_y{y}.bin'
+                  try:
+                      r=requests.get(url,headers=ua,timeout=30)
+                      p.write_bytes(r.content)
+                      with Image.open(p) as im:
+                          im.load(); valid.append((x,y,im.copy().convert('RGB')))
+                  except Exception:
+                      pass
+          if valid:
+              canvas=Image.new('RGB',(10*tile_out,15*tile_out),'white')
+              for x,y,im in valid:
+                  canvas.paste(im,(x//tile_src*tile_out,y//tile_src*tile_out))
+              canvas.save('out/page5/page5_mosaic.jpg',quality=95)
+          Path('out/page5/tile_count.txt').write_text(str(len(valid)),encoding='utf-8')
+          PY
+
+          if [ -f out/page5/page5_mosaic.jpg ]; then
+            tesseract out/page5/page5_mosaic.jpg out/page5/page5_mosaic -l heb --psm 4 2>>out/tesseract-errors.log || true
+          fi
+
+          # Render any valid PDF pages and OCR page 5.
+          for pdf in out/direct/issue.pdf out/proxy/issue.pdf; do
+            if file "$pdf" 2>/dev/null | grep -qi 'PDF'; then
+              mkdir -p "${pdf%.pdf}_render"
+              pdftoppm -f 5 -singlefile -jpeg -r 300 "$pdf" "${pdf%.pdf}_render/page5" || true
+              if [ -f "${pdf%.pdf}_render/page5.jpg" ]; then
+                tesseract "${pdf%.pdf}_render/page5.jpg" "${pdf%.pdf}_render/page5" -l heb --psm 4 2>>out/tesseract-errors.log || true
+              fi
+            fi
+          done
+
+          # Produce a compact plain-text inventory for rapid inspection.
+          {
+            echo '=== REQUEST LOG ==='; cat out/request-log.tsv
+            echo; echo '=== VALID IMAGES ==='; cat out/images.tsv
+            echo; echo '=== OCR FILES ==='
+            find out -type f -name '*.txt' -maxdepth 4 -print -exec sed -n '1,240p' {} \;
+            echo; echo '=== XML/HTML KEYWORD HITS ==='
+            grep -RaniE 'פארווערט|פאָרווערט|Forvert|Forward|ראטנער|Ratner' out/direct out/proxy 2>/dev/null || true
+          } > out/result.txt
+
+      - name: Upload retrieval corpus
+        uses: actions/upload-artifact@v4
+        with:
+          name: nli-article46-retrieval
+          path: out
+          if-no-files-found: error
+          retention-days: 1
