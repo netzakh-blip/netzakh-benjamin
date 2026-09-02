@@ -12,32 +12,31 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
-      - name: Try all public Veridian front doors
+      - name: Try reader and translation proxies
         shell: bash
         run: |
           set +e
           mkdir -p out
           python - <<'PY'
-          import subprocess, pathlib, re
+          import subprocess, pathlib
           out=pathlib.Path('out')
           urls={
-            'jrayed-xml':'https://jrayed.org/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML',
-            'jrayed-image':'https://jrayed.org/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
-            'jrayed-page':'https://jrayed.org/en/newspapers/dwt/1907/07/30/01/article/46',
-            'nli-en-xml':'https://www.nli.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML',
-            'nli-he-xml':'https://www.nli.org.il/he/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML',
-            'nli-en-image':'https://www.nli.org.il/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
-            'nli-he-image':'https://www.nli.org.il/he/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
-            'nli-root-image':'https://www.nli.org.il/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
-            'jpress-old-xml':'https://jpress.nli.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML',
-            'jpress-old-image':'https://jpress.nli.org.il/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
-            'jpress-org-xml':'https://jpress.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML',
-            'jpress-org-image':'https://jpress.org.il/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
+            'jina-modern':'https://r.jina.ai/https://www.nli.org.il/en/newspapers/dwt/1907/07/30/01/article/46',
+            'jina-legacy':'https://r.jina.ai/https://www.nli.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46',
+            'jina-xml':'https://r.jina.ai/https://www.nli.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML',
+            'jina-image':'https://r.jina.ai/https://www.nli.org.il/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
+            'jina-jrayed-modern':'https://r.jina.ai/https://jrayed.org/en/newspapers/dwt/1907/07/30/01/article/46',
+            'jina-jrayed-legacy':'https://r.jina.ai/https://jrayed.org/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML',
+            'jina-search-id':'https://s.jina.ai/dwt19070730-01.2.46',
+            'jina-search-title':'https://s.jina.ai/%22Yidishe%20meydlekh%20in%20bitern%20kamf%22%20Forverts%20Ratner',
+            'google-translate-modern':'https://www-nli-org-il.translate.goog/en/newspapers/dwt/1907/07/30/01/article/46?_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en',
+            'google-translate-legacy':'https://www-nli-org-il.translate.goog/en/newspapers/?a=d&d=dwt19070730-01.2.46&_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en',
+            'google-translate-image':'https://www-nli-org-il.translate.goog/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000&_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en',
           }
           for name,url in urls.items():
-              cmd=['curl','-L','--compressed','--retry','2','--connect-timeout','20','--max-time','90','-A','Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36','-D',str(out/(name+'.headers')),'-o',str(out/name),'-w','%{http_code} %{url_effective} %{content_type}\n',url]
+              cmd=['curl','-L','--compressed','--retry','2','--connect-timeout','25','--max-time','150','-A','Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36','-D',str(out/(name+'.headers')),'-o',str(out/name),'-w','%{http_code} %{url_effective} %{content_type}\n',url]
               p=subprocess.run(cmd,capture_output=True,text=True)
               (out/(name+'.status')).write_text('stdout='+p.stdout+'\nstderr='+p.stderr+'\nreturncode='+str(p.returncode)+'\n')
           PY
@@ -47,7 +46,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nli-article-46-source-check-mirrors
+          name: nli-article-46-source-check-proxies
           path: out
           if-no-files-found: error
           retention-days: 1
