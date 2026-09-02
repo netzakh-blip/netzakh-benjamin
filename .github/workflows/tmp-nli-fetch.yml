@@ -14,25 +14,134 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Fetch exact article assets
+      - name: Prepare browser tools
         shell: bash
         run: |
-          set -x
+          python -m pip install --quiet selenium
+          google-chrome --version || google-chrome-stable --version || true
+          chromedriver --version || true
+      - name: Retrieve target through a real Chrome session
+        shell: bash
+        run: |
           mkdir -p out
-          IMAGE='https://www.nli.org.il/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000'
-          XML='https://www.nli.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML'
-          PAGE='https://www.nli.org.il/en/newspapers/dwt/1907/07/30/01/article/46'
-          curl -L --compressed --retry 3 --connect-timeout 30 --max-time 180 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36' -D out/blockimage.headers -o out/article46.blockimage "$IMAGE" || true
-          curl -L --compressed --retry 3 --connect-timeout 30 --max-time 180 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36' -D out/xml.headers -o out/article46.xml "$XML" || true
-          curl -L --compressed --retry 3 --connect-timeout 30 --max-time 180 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36' -D out/page.headers -o out/article46.html "$PAGE" || true
+          cat > /tmp/nli_fetch.py <<'PY'
+          import base64
+          import json
+          import os
+          import time
+          from pathlib import Path
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support.ui import WebDriverWait
+
+          OUT = Path('out')
+          OUT.mkdir(exist_ok=True)
+          HOME = 'https://www.nli.org.il/en/newspapers/home'
+          ARTICLE = 'https://www.nli.org.il/en/newspapers/dwt/1907/07/30/01/article/46'
+          LEGACY = 'https://www.nli.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46'
+          XML = 'https://www.nli.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML'
+          IMAGE = 'https://www.nli.org.il/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000'
+
+          options = webdriver.ChromeOptions()
+          options.add_argument('--no-sandbox')
+          options.add_argument('--disable-dev-shm-usage')
+          options.add_argument('--disable-blink-features=AutomationControlled')
+          options.add_argument('--window-size=1920,1200')
+          options.add_argument('--lang=en-US')
+          options.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36')
+          options.add_experimental_option('excludeSwitches', ['enable-automation'])
+          options.add_experimental_option('useAutomationExtension', False)
+
+          driver = webdriver.Chrome(options=options)
+          driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+              'source': "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+          })
+
+          def wait_challenge(seconds=100):
+              deadline = time.time() + seconds
+              while time.time() < deadline:
+                  title = driver.title or ''
+                  src = driver.page_source[:8000].lower()
+                  if ('just a moment' not in title.lower()
+                      and 'checking your browser' not in title.lower()
+                      and 'challenges.cloudflare.com' not in src):
+                      return True
+                  time.sleep(2)
+              return False
+
+          def record(label):
+              (OUT / f'{label}.html').write_text(driver.page_source, encoding='utf-8')
+              driver.save_screenshot(str(OUT / f'{label}.png'))
+              meta = {
+                  'title': driver.title,
+                  'url': driver.current_url,
+                  'cookies': [c.get('name') for c in driver.get_cookies()],
+              }
+              (OUT / f'{label}.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          def browser_fetch(url, stem):
+              script = r'''
+              const url = arguments[0], done = arguments[arguments.length - 1];
+              fetch(url, {credentials:'include'}).then(async r => {
+                const b = await r.blob();
+                const fr = new FileReader();
+                fr.onload = () => done({ok:r.ok,status:r.status,type:r.headers.get('content-type'),url:r.url,b64:fr.result.split(',')[1]});
+                fr.onerror = () => done({ok:false,status:r.status,error:'FileReader failed'});
+                fr.readAsDataURL(b);
+              }).catch(e => done({ok:false,error:String(e)}));
+              '''
+              result = driver.execute_async_script(script, url)
+              (OUT / f'{stem}.fetch.json').write_text(json.dumps({k:v for k,v in result.items() if k != 'b64'}, ensure_ascii=False, indent=2), encoding='utf-8')
+              b64 = result.get('b64')
+              if b64:
+                  (OUT / stem).write_bytes(base64.b64decode(b64))
+              return result
+
+          try:
+              driver.get(HOME)
+              home_ok = wait_challenge()
+              record('home')
+              (OUT / 'home-status.txt').write_text(f'challenge_cleared={home_ok}\n', encoding='utf-8')
+
+              driver.get(ARTICLE)
+              article_ok = wait_challenge()
+              time.sleep(5)
+              record('article-modern')
+              text = ''
+              try:
+                  el = WebDriverWait(driver, 20).until(lambda d: d.find_element(By.ID, 'documentdisplayleftpanesectiontextcontainer'))
+                  text = el.text
+              except Exception as e:
+                  text = f'ERROR locating OCR container: {e!r}'
+              (OUT / 'article-ocr.txt').write_text(text, encoding='utf-8')
+              (OUT / 'article-status.txt').write_text(f'challenge_cleared={article_ok}\n', encoding='utf-8')
+
+              xml_result = browser_fetch(XML, 'article46.xml')
+              image_result = browser_fetch(IMAGE, 'article46.blockimage')
+
+              driver.get(LEGACY)
+              legacy_ok = wait_challenge()
+              time.sleep(5)
+              record('article-legacy')
+              legacy_text = ''
+              try:
+                  legacy_text = driver.find_element(By.ID, 'documentdisplayleftpanesectiontextcontainer').text
+              except Exception as e:
+                  legacy_text = f'ERROR locating OCR container: {e!r}'
+              (OUT / 'legacy-ocr.txt').write_text(legacy_text, encoding='utf-8')
+              (OUT / 'legacy-status.txt').write_text(f'challenge_cleared={legacy_ok}\n', encoding='utf-8')
+          finally:
+              driver.quit()
+          PY
+          xvfb-run -a python /tmp/nli_fetch.py
           file out/* > out/file-types.txt || true
           wc -c out/* > out/sizes.txt || true
       - name: Upload source-check artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nli-article-46-source-check
+          name: nli-article-46-source-check-browser
           path: out
           if-no-files-found: error
           retention-days: 1
