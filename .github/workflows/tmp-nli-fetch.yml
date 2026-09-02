@@ -2,10 +2,8 @@ name: Temporary NLI source fetch
 
 on:
   push:
-    branches:
-      - tmp-nli-source-check
-    paths:
-      - '.github/workflows/tmp-nli-fetch.yml'
+    branches: [tmp-nli-source-check]
+    paths: ['.github/workflows/tmp-nli-fetch.yml']
   workflow_dispatch:
 
 permissions:
@@ -14,110 +12,42 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 8
     steps:
-      - name: Prepare browser tools
+      - name: Try all public Veridian front doors
         shell: bash
         run: |
-          python -m pip install --quiet selenium
-          google-chrome --version || google-chrome-stable --version || true
-          chromedriver --version || true
-      - name: Retrieve target through Chrome
-        continue-on-error: true
-        shell: bash
-        run: |
+          set +e
           mkdir -p out
-          cat > /tmp/nli_fetch.py <<'PY'
-          import base64, json, time, traceback
-          from pathlib import Path
-          from selenium import webdriver
-          from selenium.webdriver.common.by import By
-
-          OUT=Path('out'); OUT.mkdir(exist_ok=True)
-          ARTICLE='https://www.nli.org.il/en/newspapers/dwt/1907/07/30/01/article/46'
-          LEGACY='https://www.nli.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46'
-          XML='https://www.nli.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML'
-          IMAGE='https://www.nli.org.il/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000'
-
-          opts=webdriver.ChromeOptions()
-          for a in ['--no-sandbox','--disable-dev-shm-usage','--disable-blink-features=AutomationControlled','--window-size=1920,1400','--lang=en-US','--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36']:
-              opts.add_argument(a)
-          opts.add_experimental_option('excludeSwitches',['enable-automation'])
-          opts.add_experimental_option('useAutomationExtension',False)
-          driver=None
-
-          def save_state(stem):
-              try: (OUT/f'{stem}.html').write_text(driver.page_source,encoding='utf-8')
-              except Exception: pass
-              try: driver.save_screenshot(str(OUT/f'{stem}.png'))
-              except Exception: pass
-              try:
-                  (OUT/f'{stem}.json').write_text(json.dumps({'title':driver.title,'url':driver.current_url,'cookies':[c.get('name') for c in driver.get_cookies()]},ensure_ascii=False,indent=2),encoding='utf-8')
-              except Exception: pass
-
-          def challenge_wait(limit=75):
-              end=time.time()+limit
-              while time.time()<end:
-                  try:
-                      title=(driver.title or '').lower(); src=driver.page_source[:12000].lower()
-                      if 'just a moment' not in title and 'checking your browser' not in title and 'challenges.cloudflare.com' not in src:
-                          return True
-                  except Exception: pass
-                  time.sleep(2)
-              return False
-
-          def go(url,stem):
-              try:
-                  driver.get(url)
-              except Exception as e:
-                  (OUT/f'{stem}-navigation-error.txt').write_text(repr(e),encoding='utf-8')
-              ok=challenge_wait()
-              time.sleep(4)
-              save_state(stem)
-              (OUT/f'{stem}-challenge.txt').write_text(str(ok),encoding='utf-8')
-              return ok
-
-          def fetch_blob(url,stem):
-              js="""
-              const url=arguments[0], done=arguments[arguments.length-1];
-              fetch(url,{credentials:'include'}).then(async r=>{const b=await r.blob();const fr=new FileReader();fr.onload=()=>done({ok:r.ok,status:r.status,type:r.headers.get('content-type'),url:r.url,b64:fr.result.split(',')[1]});fr.onerror=()=>done({ok:false,status:r.status,error:'reader'});fr.readAsDataURL(b)}).catch(e=>done({ok:false,error:String(e)}));
-              """
-              try: result=driver.execute_async_script(js,url)
-              except Exception as e: result={'ok':False,'error':repr(e)}
-              (OUT/f'{stem}.json').write_text(json.dumps({k:v for k,v in result.items() if k!='b64'},ensure_ascii=False,indent=2),encoding='utf-8')
-              if result.get('b64'):
-                  (OUT/stem).write_bytes(base64.b64decode(result['b64']))
-
-          try:
-              driver=webdriver.Chrome(options=opts)
-              driver.set_page_load_timeout(45)
-              driver.set_script_timeout(60)
-              driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument',{'source':"Object.defineProperty(navigator,'webdriver',{get:()=>undefined});"})
-              go(ARTICLE,'article-modern')
-              try: txt=driver.find_element(By.ID,'documentdisplayleftpanesectiontextcontainer').text
-              except Exception as e: txt='ERROR: '+repr(e)
-              (OUT/'article-ocr.txt').write_text(txt,encoding='utf-8')
-              fetch_blob(XML,'article46.xml')
-              fetch_blob(IMAGE,'article46.blockimage')
-              go(LEGACY,'article-legacy')
-              try: txt=driver.find_element(By.ID,'documentdisplayleftpanesectiontextcontainer').text
-              except Exception as e: txt='ERROR: '+repr(e)
-              (OUT/'legacy-ocr.txt').write_text(txt,encoding='utf-8')
-          except Exception:
-              (OUT/'fatal.txt').write_text(traceback.format_exc(),encoding='utf-8')
-          finally:
-              if driver:
-                  try: driver.quit()
-                  except Exception: pass
+          python - <<'PY'
+          import subprocess, pathlib, re
+          out=pathlib.Path('out')
+          urls={
+            'jrayed-xml':'https://jrayed.org/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML',
+            'jrayed-image':'https://jrayed.org/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
+            'jrayed-page':'https://jrayed.org/en/newspapers/dwt/1907/07/30/01/article/46',
+            'nli-en-xml':'https://www.nli.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML',
+            'nli-he-xml':'https://www.nli.org.il/he/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML',
+            'nli-en-image':'https://www.nli.org.il/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
+            'nli-he-image':'https://www.nli.org.il/he/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
+            'nli-root-image':'https://www.nli.org.il/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
+            'jpress-old-xml':'https://jpress.nli.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML',
+            'jpress-old-image':'https://jpress.nli.org.il/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
+            'jpress-org-xml':'https://jpress.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML',
+            'jpress-org-image':'https://jpress.org.il/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000',
+          }
+          for name,url in urls.items():
+              cmd=['curl','-L','--compressed','--retry','2','--connect-timeout','20','--max-time','90','-A','Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36','-D',str(out/(name+'.headers')),'-o',str(out/name),'-w','%{http_code} %{url_effective} %{content_type}\n',url]
+              p=subprocess.run(cmd,capture_output=True,text=True)
+              (out/(name+'.status')).write_text('stdout='+p.stdout+'\nstderr='+p.stderr+'\nreturncode='+str(p.returncode)+'\n')
           PY
-          xvfb-run -a python /tmp/nli_fetch.py || true
           file out/* > out/file-types.txt || true
           wc -c out/* > out/sizes.txt || true
       - name: Upload source-check artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nli-article-46-source-check-browser
+          name: nli-article-46-source-check-mirrors
           path: out
           if-no-files-found: error
           retention-days: 1
