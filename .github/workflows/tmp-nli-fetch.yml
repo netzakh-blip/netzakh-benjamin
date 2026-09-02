@@ -1,0 +1,38 @@
+name: Temporary NLI source fetch
+
+on:
+  push:
+    branches:
+      - tmp-nli-source-check
+    paths:
+      - '.github/workflows/tmp-nli-fetch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fetch exact article assets
+        shell: bash
+        run: |
+          set -x
+          mkdir -p out
+          IMAGE='https://www.nli.org.il/en/newspapers/?a=is&oid=dwt19070730-01.2.46&type=blockimage&area=1&width=3000'
+          XML='https://www.nli.org.il/en/newspapers/?a=d&d=dwt19070730-01.2.46&f=XML'
+          PAGE='https://www.nli.org.il/en/newspapers/dwt/1907/07/30/01/article/46'
+          curl -L --compressed --retry 3 --connect-timeout 30 --max-time 180 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36' -D out/blockimage.headers -o out/article46.blockimage "$IMAGE" || true
+          curl -L --compressed --retry 3 --connect-timeout 30 --max-time 180 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36' -D out/xml.headers -o out/article46.xml "$XML" || true
+          curl -L --compressed --retry 3 --connect-timeout 30 --max-time 180 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36' -D out/page.headers -o out/article46.html "$PAGE" || true
+          file out/* > out/file-types.txt || true
+          wc -c out/* > out/sizes.txt || true
+      - name: Upload source-check artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nli-article-46-source-check
+          path: out
+          if-no-files-found: error
+          retention-days: 1
